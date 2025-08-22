@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup script for AWS S3 Image Upload project
+Setup script for FastAPI S3 Image Uploader project
 This script helps configure the project and test AWS connectivity
 """
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 def create_env_file():
     """Create .env file from user input"""
-    print("🔧 Setting up AWS S3 Image Upload project")
+    print("🔧 Setting up FastAPI S3 Image Uploader project")
     print("=" * 50)
     
     # Check if .env already exists
@@ -88,7 +88,7 @@ def install_dependencies():
 
 def main():
     """Main setup function"""
-    print("🚀 AWS S3 Image Upload - Setup Wizard")
+    print("🚀 FastAPI S3 Image Uploader - Setup Wizard")
     print("=" * 50)
     
     # Check if requirements.txt exists

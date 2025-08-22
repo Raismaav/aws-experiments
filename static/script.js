@@ -5,6 +5,39 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
     const results = document.getElementById('results');
+    
+    // Gallery elements
+    const galleryGrid = document.getElementById('galleryGrid');
+    const refreshGalleryBtn = document.getElementById('refreshGallery');
+    const galleryFilter = document.getElementById('galleryFilter');
+    
+    // Modal elements
+    const modal = document.getElementById('imageModal');
+    const modalImage = document.getElementById('modalImage');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalInfo = document.getElementById('modalInfo');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const closeModal = document.querySelector('.close');
+    const closeModalBtn = document.getElementById('closeModal');
+    
+    // Current modal data
+    let currentModalData = null;
+
+    // Initialize gallery
+    loadGallery();
+
+    // Gallery event listeners
+    refreshGalleryBtn.addEventListener('click', loadGallery);
+    galleryFilter.addEventListener('change', filterGallery);
+    
+    // Modal event listeners
+    closeModal.addEventListener('click', closeImageModal);
+    closeModalBtn.addEventListener('click', closeImageModal);
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeImageModal();
+        }
+    });
 
     // Drag and drop functionality
     uploadArea.addEventListener('dragover', function(e) {
@@ -75,6 +108,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     showRegularResult(result);
                 }
+                // Refresh gallery after successful upload
+                setTimeout(loadGallery, 1000);
             } else {
                 showResult('error', 'Upload failed', result.detail || 'Unknown error occurred');
             }
@@ -165,20 +200,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (result.metadata && Object.keys(result.metadata).length > 0) {
             html += '<div class="metadata-section">';
             html += '<h5>📷 Camera Information:</h5>';
-            if (result.metadata.camera_make !== 'Unknown') {
-                html += `<p><strong>Camera:</strong> ${result.metadata.camera_make} ${result.metadata.camera_model}</p>`;
+            if (result.metadata.width && result.metadata.height) {
+                html += `<p><strong>Resolution:</strong> ${result.metadata.width} x ${result.metadata.height}</p>`;
             }
-            if (result.metadata.iso > 0) {
-                html += `<p><strong>ISO:</strong> ${result.metadata.iso}</p>`;
-            }
-            if (result.metadata.exposure_time > 0) {
-                html += `<p><strong>Exposure:</strong> 1/${Math.round(1/result.metadata.exposure_time)}s</p>`;
-            }
-            if (result.metadata.f_number > 0) {
-                html += `<p><strong>Aperture:</strong> f/${result.metadata.f_number}</p>`;
-            }
-            if (result.metadata.focal_length > 0) {
-                html += `<p><strong>Focal Length:</strong> ${result.metadata.focal_length}mm</p>`;
+            if (result.metadata.colors) {
+                html += `<p><strong>Colors:</strong> ${result.metadata.colors}</p>`;
             }
             html += '</div>';
         }
@@ -192,6 +218,8 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '</div>';
         
         resultItem.innerHTML = html;
+        
+        // Add to results
         results.appendChild(resultItem);
         
         // Auto-remove after 15 seconds for RAW files (longer due to more info)
@@ -223,6 +251,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         resultItem.innerHTML = html;
+        
+        // Add to results
         results.appendChild(resultItem);
         
         // Auto-remove after 10 seconds
@@ -236,6 +266,205 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10000);
         
         results.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Gallery Functions
+    async function loadGallery() {
+        try {
+            galleryGrid.innerHTML = '<div class="gallery-loading">Loading gallery...</div>';
+            
+            const response = await fetch('/images?limit=100');
+            const data = await response.json();
+            
+            if (data.images && data.images.length > 0) {
+                displayGallery(data.images);
+            } else {
+                galleryGrid.innerHTML = `
+                    <div class="gallery-empty">
+                        <h3>📸 No images found</h3>
+                        <p>Upload some images to see them here!</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            galleryGrid.innerHTML = `
+                <div class="gallery-empty">
+                    <h3>❌ Error loading gallery</h3>
+                    <p>Failed to load images. Please try again.</p>
+                </div>
+            `;
+        }
+    }
+
+    function displayGallery(images) {
+        galleryGrid.innerHTML = '';
+        
+        images.forEach(image => {
+            const galleryItem = createGalleryItem(image);
+            galleryGrid.appendChild(galleryItem);
+        });
+    }
+
+    function createGalleryItem(image) {
+        const item = document.createElement('div');
+        item.className = `gallery-item ${image.is_raw ? 'raw' : 'regular'}`;
+        
+        const imageType = image.is_raw ? 'RAW' : 'Regular';
+        const fileSize = (image.size / (1024 * 1024)).toFixed(2);
+        
+        // Use high-quality images for display, thumbnails only for very small previews
+        // For better quality, we'll use the main display URL instead of thumbnails
+        let imageSrc = image.url; // Use high-quality image for display
+        
+        item.innerHTML = `
+            <img src="${imageSrc}" alt="${image.filename}" class="gallery-item-image" 
+                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjVGNUY1Ii8+Cjx0ZXh0IHg9IjEwMCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZTwvdGV4dD4KPC9zdmc+'">
+            <div class="gallery-item-info">
+                <div class="gallery-item-title">${image.filename}</div>
+                <div class="gallery-item-meta">
+                    <span>${fileSize} MB</span>
+                    <span class="gallery-item-type ${image.is_raw ? 'raw' : 'regular'}">${imageType}</span>
+                </div>
+            </div>
+        `;
+        
+        // Add click event to open modal
+        item.addEventListener('click', () => openImageModal(image));
+        
+        return item;
+    }
+
+    function filterGallery() {
+        const filter = galleryFilter.value;
+        const items = galleryGrid.querySelectorAll('.gallery-item');
+        
+        items.forEach(item => {
+            if (filter === 'all' || 
+                (filter === 'raw' && item.classList.contains('raw')) ||
+                (filter === 'regular' && item.classList.contains('regular'))) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    // Modal Functions
+    function openImageModal(image) {
+        currentModalData = image;
+        
+        // Set modal content
+        modalTitle.textContent = image.filename;
+        modalImage.src = image.url;
+        
+        // Set modal info
+        const fileSize = (image.size / (1024 * 1024)).toFixed(2);
+        const uploadDate = new Date(image.last_modified).toLocaleDateString();
+        
+        modalInfo.innerHTML = `
+            <p><strong>File:</strong> ${image.filename}</p>
+            <p><strong>Type:</strong> ${image.is_raw ? 'RAW' : 'Regular'} Image</p>
+            <p><strong>Size:</strong> ${fileSize} MB</p>
+            <p><strong>Uploaded:</strong> ${uploadDate}</p>
+            <p><strong>Folder:</strong> ${image.folder}</p>
+        `;
+        
+        // Generate download buttons based on image type
+        generateDownloadButtons(image);
+        
+        // Show modal
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function generateDownloadButtons(image) {
+        const downloadButtonsContainer = document.getElementById('downloadButtons');
+        
+        if (image.is_raw) {
+            // For RAW files, show two download buttons
+            downloadButtonsContainer.innerHTML = `
+                <button class="btn btn-download btn-download-processed" id="downloadProcessedBtn">
+                    ⬇️ Download JPEG (Processed)
+                </button>
+                <button class="btn btn-download btn-download-raw" id="downloadRawBtn">
+                    ⬇️ Download RAW (Original)
+                </button>
+            `;
+            
+            // Add event listeners for RAW download buttons
+            document.getElementById('downloadProcessedBtn').addEventListener('click', () => {
+                downloadImage(image.filename, 'processed', image.url);
+            });
+            
+            document.getElementById('downloadRawBtn').addEventListener('click', () => {
+                downloadImage(image.filename, 'raw', image.raw_original_url);
+            });
+        } else {
+            // For regular images, show one download button
+            downloadButtonsContainer.innerHTML = `
+                <button class="btn btn-download btn-download-regular" id="downloadRegularBtn">
+                    ⬇️ Download Image
+                </button>
+            `;
+            
+            // Add event listener for regular download button
+            document.getElementById('downloadRegularBtn').addEventListener('click', () => {
+                downloadImage(image.filename, 'regular', image.original_url || image.url);
+            });
+        }
+    }
+
+    function closeImageModal() {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        currentModalData = null;
+    }
+
+    function downloadImage(filename, type, url) {
+        console.log(`Download requested:`, { filename, type, url });
+        
+        if (!url) {
+            alert(`Download URL not available for ${type} file.`);
+            return;
+        }
+        
+        try {
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank'; // Open in new tab as fallback
+            
+            // Set appropriate filename based on type
+            let downloadFilename = filename;
+            if (type === 'processed') {
+                // For processed files, ensure .jpg extension
+                downloadFilename = filename.replace(/\.[^/.]+$/, '.jpg');
+            } else if (type === 'raw') {
+                // For RAW files, try to get original extension from URL
+                const urlParts = url.split('/');
+                const lastPart = urlParts[urlParts.length - 1];
+                if (lastPart.includes('.')) {
+                    downloadFilename = lastPart;
+                }
+            }
+            
+            link.download = downloadFilename;
+            
+            console.log(`Attempting download:`, { url, downloadFilename });
+            
+            // Try to trigger download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Show success message
+            console.log(`Download started: ${downloadFilename}`);
+            
+        } catch (error) {
+            console.error('Download failed:', error);
+            // Fallback: open in new tab
+            console.log('Opening URL in new tab as fallback:', url);
+            window.open(url, '_blank');
+        }
     }
 
     // Add some visual feedback for file selection

@@ -1,4 +1,4 @@
-# 🚀 AWS S3 Image Upload Experiment
+# 🚀 FastAPI S3 Image Uploader
 
 A modern web application that allows users to upload images directly to an AWS S3 bucket using FastAPI backend and a beautiful drag & drop frontend.
 
@@ -10,6 +10,10 @@ A modern web application that allows users to upload images directly to an AWS S
 - **🔒 Secure**: File validation, size limits, and type checking
 - **📱 Responsive**: Works perfectly on desktop and mobile
 - **⚡ Fast**: Built with FastAPI for high performance
+- **📸 RAW Image Support**: Automatic processing of RAW camera files (CR2, NEF, ARW, etc.)
+- **🔗 Smart File Mapping**: Intelligent linking between processed JPEGs and original RAW files
+- **📁 File Organization**: Automatic folder structure (uploads/, raw/, processed/, thumbnails/)
+- **🔄 Auto-Processing**: RAW files automatically converted to web-friendly JPEGs
 
 ## 🏗️ Architecture
 
@@ -26,20 +30,26 @@ A modern web application that allows users to upload images directly to an AWS S
 - AWS Account with S3 access
 - S3 bucket created and configured
 
-### 2. Clone & Setup
+### 2. File Size Limits
+
+- **Regular images**: Up to 50MB (JPEG, PNG, GIF, etc.)
+- **RAW files**: Up to 500MB (CR2, NEF, ARW, etc.)
+- **Supported formats**: All common image formats + RAW camera formats
+
+### 3. Clone & Setup
 
 ```bash
-git clone <your-repo-url>
-cd aws-experiments
+git clone <repo-url>
+cd fastapi-s3-image-uploader
 ```
 
-### 3. Install Dependencies
+### 4. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure AWS
+### 5. Configure AWS
 
 #### Option A: Automatic Setup (Recommended)
 ```bash
@@ -55,13 +65,13 @@ AWS_REGION=your-region-here
 S3_BUCKET_NAME=your-bucket-name-here
 ```
 
-### 5. Run the Application
+### 6. Run the Application
 
 ```bash
 uvicorn main:app --reload
 ```
 
-### 6. Open in Browser
+### 7. Open in Browser
 
 Navigate to: http://localhost:8000
 
@@ -88,11 +98,18 @@ Apply this policy to your bucket (replace `your-bucket-name`):
             "Effect": "Allow",
             "Principal": "*",
             "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::your-bucket-name/uploads/*"
+            "Resource": [
+                "arn:aws:s3:::your-bucket-name/uploads/*",
+                "arn:aws:s3:::your-bucket-name/raw/*",
+                "arn:aws:s3:::your-bucket-name/processed/*",
+                "arn:aws:s3:::your-bucket-name/thumbnails/*"
+            ]
         }
     ]
 }
 ```
+
+**Note**: This policy allows public read access to all image folders. For production use, consider restricting access as needed.
 
 ### 3. Create IAM User
 
@@ -101,22 +118,102 @@ Apply this policy to your bucket (replace `your-bucket-name`):
 - Attach `AmazonS3FullAccess` policy (or create custom policy)
 - Save Access Key ID and Secret Access Key
 
+## 📸 RAW Image Processing & File Mapping
+
+### How It Works
+
+The application automatically processes RAW camera files and creates a smart mapping system:
+
+### Automatic Folder Structure
+
+The system automatically creates and organizes files in these S3 folders:
+
+- **`uploads/`**: Regular image files (JPEG, PNG, GIF, etc.)
+- **`raw/`**: Original RAW camera files (CR2, NEF, ARW, etc.)
+- **`processed/`**: JPEG versions of RAW files for web viewing
+- **`thumbnails/`**: Small preview images for all files
+
+1. **Upload**: When you upload ANY file (RAW or regular), the system:
+   - **RAW files**: Stores original in `raw/`, converts to JPEG in `processed/`, creates thumbnail
+   - **Regular files**: Stores original in `uploads/`, creates thumbnail
+   - **All files**: Saves mapping relationship in `file_mapping.json`
+
+2. **File Mapping**: The `file_mapping.json` file maintains the relationship between:
+   - **Uploaded filename**: `20250822_001354_2d95b20a.jpg`
+   - **Original filename**: `IMG_001.CR2` or `vacation_photo.jpeg`
+   - **File type**: `raw` or `regular`
+   - **Full URL**: Complete S3 URL with proper extension
+
+3. **Download Links**: When viewing any image, you get:
+   - **For RAW files**: JPEG (processed) + RAW (original) downloads
+   - **For regular files**: Original file download
+   - **All downloads**: Include proper filenames and extensions
+
+### File Structure Example
+
+```json
+{
+  "file_mappings": {
+    "20250822_001354_2d95b20a.jpg": {
+      "original_filename": "IMG_001.CR2",
+      "file_url": "https://bucket.s3.region.amazonaws.com/raw/20250822_001354_2d95b20a.CR2",
+      "file_type": "raw",
+      "mapped_at": "2025-08-22T00:13:54.123456"
+    },
+    "20250822_004500_a1b2c3d4.png": {
+      "original_filename": "screenshot.png",
+      "file_url": "https://bucket.s3.region.amazonaws.com/uploads/20250822_004500_a1b2c3d4.png",
+      "file_type": "regular",
+      "mapped_at": "2025-08-22T00:45:00.123456"
+    }
+  },
+  "last_updated": "2025-08-22T00:45:00.123456"
+}
+```
+
+### Supported RAW Formats
+
+- **Canon**: CR2, CR3
+- **Nikon**: NEF, NRW
+- **Sony**: ARW, SR2, SRW
+- **Fujifilm**: RAF
+- **Adobe**: DNG
+- **And many more**: ORF, PEF, RW2, etc.
+
+### How File Mapping Works
+
+The system automatically creates a mapping database (`file_mapping.json`) that tracks:
+
+1. **File Relationships**: Links uploaded files to their original names
+2. **Type Classification**: Identifies RAW vs. regular images
+3. **URL Generation**: Creates complete download links with proper extensions
+4. **Metadata Tracking**: Records upload timestamps and file information
+
+This mapping system ensures that:
+- Download links always include the correct file extension
+- Users can access both processed and original versions
+- File relationships are maintained even after processing
+- The system can handle mixed file types efficiently
+
 ## 📁 Project Structure
 
 ```
-aws-experiments/
-├── main.py                 # FastAPI application
-├── requirements.txt        # Python dependencies
-├── setup.py               # Automated setup script
-├── .env.example           # Environment variables template
-├── s3_bucket_policy.json  # S3 bucket policy template
-├── static/                # Frontend files
-│   ├── index.html        # Main HTML page
-│   ├── style.css         # Modern CSS styles
-│   └── script.js         # Frontend logic
-└── utils/                 # Backend utilities
-    ├── __init__.py       # Package initialization
-    └── s3_uploader.py    # S3 upload handling
+fastapi-s3-image-uploader/
+├── main.py                    # FastAPI application entry point
+├── requirements.txt           # Python dependencies
+├── setup.py                  # Automated setup wizard
+├── .env.example              # Environment variables template
+├── s3_bucket_policy.json     # S3 bucket policy template
+├── check_bucket.py           # S3 bucket connection test
+├── file_mapping.json         # File mapping database (auto-generated)
+├── static/                   # Frontend files
+│   ├── index.html           # Main HTML page with drag & drop
+│   ├── style.css            # Modern CSS with animations
+│   └── script.js            # Frontend logic and S3 integration
+└── utils/                    # Backend utilities
+    ├── __init__.py          # Package initialization
+    ├── s3_uploader.py       # S3 upload and file management
+    └── raw_processor.py     # RAW image processing engine
 ```
 
 ## 🧪 Testing
@@ -130,6 +227,19 @@ curl http://localhost:8000/health
 ```bash
 curl -X POST -F "file=@test-image.jpg" http://localhost:8000/upload
 ```
+
+### List Images
+```bash
+curl http://localhost:8000/images?limit=10
+```
+
+## 🔌 API Endpoints
+
+- **`GET /`**: Main application page
+- **`POST /upload`**: Upload image file (supports RAW and regular formats)
+- **`GET /images`**: List all images with metadata
+- **`GET /health`**: Health check endpoint
+- **`GET /static/*`**: Static files (CSS, JS, images)
 
 ## 🔍 Troubleshooting
 
@@ -148,6 +258,12 @@ curl -X POST -F "file=@test-image.jpg" http://localhost:8000/upload
 - The app automatically handles region-specific URLs
 - For non-standard regions (like `mx-central-1`), URLs include region
 - For standard regions (like `us-east-1`), URLs are simplified
+
+#### 4. File Mapping Issues
+- Check that `file_mapping.json` exists and is writable
+- Verify S3 permissions for all folder types (uploads/, raw/, processed/, thumbnails/)
+- Ensure the bucket policy includes all necessary folder paths
+- Check logs for mapping creation errors
 
 ### Debug Mode
 

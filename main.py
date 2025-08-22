@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(title="AWS S3 Image Upload", version="1.0.0")
+app = FastAPI(title="FastAPI S3 Image Uploader", version="1.0.0")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -42,6 +42,19 @@ async def upload_image(file: UploadFile = File(...)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+@app.get("/images")
+async def list_images(limit: int = 50):
+    """List all images in the S3 bucket"""
+    try:
+        images = await s3_uploader.list_images(limit=limit)
+        return {
+            "images": images,
+            "total": len(images),
+            "limit": limit
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list images: {str(e)}")
 
 @app.get("/health")
 async def health_check():
