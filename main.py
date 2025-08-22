@@ -24,24 +24,21 @@ async def read_root():
 
 @app.post("/upload")
 async def upload_image(file: UploadFile = File(...)):
-    """Upload image to S3 bucket"""
+    """Upload image to S3 bucket with RAW processing support"""
     try:
         # Validate file type
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
         
-        # Validate file size (max 10MB)
-        if file.size > 10 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="File size must be less than 10MB")
+        # Check file size (increased limit for RAW files)
+        max_size = 500 * 1024 * 1024  # 500MB for RAW files
+        if file.size > max_size:
+            raise HTTPException(status_code=400, detail=f"File size must be less than {max_size / (1024*1024):.0f}MB")
         
-        # Upload to S3
-        s3_url = await s3_uploader.upload_file(file)
+        # Upload to S3 (now returns dict instead of string)
+        result = await s3_uploader.upload_file(file)
         
-        return {
-            "message": "Image uploaded successfully",
-            "s3_url": s3_url,
-            "filename": file.filename
-        }
+        return result
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")

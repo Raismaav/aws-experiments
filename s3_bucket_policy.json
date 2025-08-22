@@ -6,7 +6,12 @@
             "Effect": "Allow",
             "Principal": "*",
             "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::YOUR-BUCKET-NAME/uploads/*"
+            "Resource": [
+                "arn:aws:s3:::raismaav-experiments/uploads/*",
+                "arn:aws:s3:::raismaav-experiments/raw/*",
+                "arn:aws:s3:::raismaav-experiments/processed/*",
+                "arn:aws:s3:::raismaav-experiments/thumbnails/*"
+            ]
         }
     ]
 }
