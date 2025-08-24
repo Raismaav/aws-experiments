@@ -75,6 +75,14 @@ uvicorn main:app --reload
 
 Navigate to: http://localhost:8000
 
+### 8. Access API Documentation
+
+Once the server is running, you can access:
+
+- **Interactive API Docs**: http://localhost:8000/docs
+- **OpenAPI Schema**: http://localhost:8000/openapi.json
+- **Detailed Documentation**: See `API_ENDPOINTS.md` file
+
 ## 🔧 AWS S3 Configuration
 
 ### 1. Create S3 Bucket
@@ -240,6 +248,21 @@ curl http://localhost:8000/images?limit=10
 - **`GET /images`**: List all images with metadata
 - **`GET /health`**: Health check endpoint
 - **`GET /static/*`**: Static files (CSS, JS, images)
+
+### 📚 API Documentation
+
+The API includes comprehensive automatic documentation:
+
+- **Interactive Swagger UI**: Visit `http://localhost:8000/docs` for live API testing
+- **OpenAPI Schema**: Available at `http://localhost:8000/openapi.json`
+- **Detailed Endpoint Docs**: See `API_ENDPOINTS.md` for complete documentation with examples
+
+#### Features of Auto-Documentation:
+- **Request/Response Models**: Pydantic models with detailed field descriptions
+- **Example Requests**: cURL, Python, and JavaScript examples for each endpoint
+- **Error Responses**: Comprehensive error handling documentation
+- **Schema Validation**: Automatic request/response validation
+- **Live Testing**: Try endpoints directly from the browser
 
 ## 🔍 Troubleshooting
 
